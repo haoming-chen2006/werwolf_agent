@@ -55,6 +55,10 @@ from .elo_system import EloCalculator, create_elo_calculator
 
 app = FastAPI(title="Werewolf Green Agent", description="Design-doc referee demo")
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
 # Global ELO calculator instance
 elo_calculator = create_elo_calculator()
 
@@ -476,9 +480,44 @@ def build_record(seed: int) -> GameRecord:
     )
 
 
+from .game_manager import GameManager
+
 @app.post("/tasks/werewolf_match", response_model=Assessment)
-def run_demo_match(req: MatchRequest) -> Assessment:
-    record = build_record(req.seed)
+async def run_match(req: MatchRequest) -> Assessment:
+    # Convert PlayerCard to PlayerProfile
+    profiles = []
+    for p in req.players:
+        # Assign random roles if not provided (simplified for now)
+        # In a real scenario, we might want a smarter assignment logic or it comes from config
+        # For now, let's assume roles are assigned by the caller or we do a random assignment here
+        # BUT, the current PlayerCard doesn't have role info.
+        # We need to assign roles here.
+        profiles.append(PlayerProfile(
+            id=p.id,
+            alias=p.alias,
+            provider=p.provider,
+            model=p.model,
+            initial_elo=p.initial_elo or {"overall": 1500, "wolf": 1500, "villager": 1500}
+        ))
+    
+    # Simple Role Assignment Logic
+    import random
+    n = len(profiles)
+    n_wolves = max(1, n // 3)
+    roles = ["werewolf"] * n_wolves + ["villager"] * (n - n_wolves)
+    # Add special roles if enough players
+    if n > 4:
+        roles[n_wolves] = "detective"
+    if n > 5:
+        roles[n_wolves+1] = "doctor"
+        
+    random.shuffle(roles)
+    for i, p in enumerate(profiles):
+        p.role_private = roles[i]
+        p.alignment = "wolves" if roles[i] == "werewolf" else "town"
+
+    manager = GameManager(profiles, req.config)
+    record = await manager.run_game()
     metrics = build_metrics(record)
     return Assessment(record=record, metrics=metrics)
 

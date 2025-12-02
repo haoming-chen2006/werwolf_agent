@@ -1,0 +1,16 @@
+name = "Werewolf Green Agent"
+description = "Referee implementing the scripted werewolf.v1 design doc with structured prompts and metrics."
+version = "0.1.0"
+url = "http://localhost:8001"
+defaultInputModes = ["text"]
+defaultOutputModes = ["text"]
+entrypoint = "./run.sh"
+port = 8001
+
+[capabilities]
+
+[[skills]]
+name = "play"
+id = "play"
+description = "Play the game"
+tags = ["game"]

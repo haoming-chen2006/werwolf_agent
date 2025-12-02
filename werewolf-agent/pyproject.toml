@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "werewolf-agent"
+version = "0.1.0"
+description = "Werewolf Green Agent"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "httpx",
+    "pandas",
+    "matplotlib"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

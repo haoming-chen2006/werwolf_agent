@@ -1,0 +1,16 @@
+name = "Werewolf White Agent"
+description = "Baseline White Agent (placeholder) that returns 501 while the green agent replays scripted turns."
+version = "0.1.0"
+url = "http://localhost:8011"
+defaultInputModes = ["text"]
+defaultOutputModes = ["text"]
+entrypoint = "./run_white.sh"
+port = 8011
+
+[capabilities]
+
+[[skills]]
+name = "play"
+id = "play"
+description = "Play the game"
+tags = ["game"]

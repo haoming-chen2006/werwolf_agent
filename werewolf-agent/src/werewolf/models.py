@@ -32,6 +32,7 @@ class PlayerProfile(BaseModel):
     alive: bool = True
     provider: Optional[str] = None
     model: Optional[str] = None
+    url: Optional[str] = None
     initial_elo: Dict[str, int] = Field(
         default_factory=lambda: {"overall": 1500, "wolf": 1500, "villager": 1500}
     )
