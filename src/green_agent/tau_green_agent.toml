@@ -1,0 +1,14 @@
+name = "deprecated_tau_green_agent"
+description = "Deprecated: replaced by `werewolf_green_agent`. See `werewolf_green_agent.toml`."
+version = "0.1.0"
+
+defaultInputModes = ["text"]
+defaultOutputModes = ["text"]
+[capabilities]
+streaming = false
+
+[[skills]]
+id = "deprecated"
+name = "Deprecated tau agent card"
+description = "This agent card has been deprecated; use `werewolf_green_agent.toml` instead."
+tags = ["deprecated"]

@@ -1,0 +1,46 @@
+After the change, the game should output exactly these components, first lets implement the records part. Remember the key of this game is it should follow these two commands:
+python main.py launch – for local launch and check
+HTTPS_ENABLED=true CLOUDRUN_HOST=green.werwolfs.org ROLE=green agentbeats run_ctrl – Most important, for remote controller lpage that inside this controller page’s standard logs should also show the same log and run the evaluation!
+
+The game should output components of two main categories, the overall structure should be like this
+
+Currently, the likely problems:
+– Most important, now following the idea of rolling summary:
+	At every pmopt-response pair, there should be summary files loaded, provided as prompt, and later updated, but this is not happening
+– DOing too much
+	 NO need for fancy confidence level an dother stuff, stick to the one hidden thought and one public speech in both night and day action for voting (if two wolfs vote same just pick the first wolf)
+
+– Unsuccessful parsing
+The game record is broken, public speech and private thoughts are not correctly displayed
+
+
+Game_Hostory
+	Record
+		Recrod_Game_2025_0908….
+			Public History
+			Green agent history (prompted agent x with prompt …, updated filex x…)
+			Player 1
+				Info
+				Private Thoughts
+				Public Speech 
+			Player 2
+			…etc.
+	Evals
+		Evals_Game_2025_0908….
+
+The gameplay and output log update should be tied to gether–during the game the output log gradually grows, and the green agent continue to take the existing output log and give to the white agent, whose response make it grow further (continue rolling update)
+
+First update gameplay:
+One thing to notice before the game is whenever prompting a white agent to talk, the green agent should construct the prompt from the following component, remember to keep ALL THESE COMPONENTS:
+Grab the current public history + a role statement for alignment (fixed for each role, sounds like you are a wolf in game werewolf your goal is …) 
+Grab the current player’s private thought + public speech so fat (1,2 are all down through loading files and giving)
+Prompt the agent throuh the wording to let is output a json response of private thought + public speech
+Add the private thought to the agents private thoughts file, public speech to the public speech file + PUBLIC HISTORY FILE
+The whole process should look something like this:
+
+Green agent updates public history file with some overarching info (it is day 0 now, welcome ot werewolf, or it is day 3 now, xxx died) – then load player 2 private thought, private 2 public speech, and this public info + specific alignment statements (you are player 2 in game of werewolf, you are a wolf, blah blah blah) and give it to player 2, and player 2 abides and responses, the response can look something like
+{
+Thought: I am werewolf and player 4 is blaming me i need ot get rid of this blame blah blah blah
+speech:I am not werewolf blah blah blah
+}
+The green agent then adds the ‘speech’ line to the  Recrod_Game_2025_0908…./Player_2/public speech and Recrod_Game_2025_0908…./Public_hoistory and ‘thought’ line to Recrod_Game_2025_0908…./Player_2/private thought

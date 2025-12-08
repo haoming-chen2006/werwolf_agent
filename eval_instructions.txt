@@ -1,0 +1,532 @@
+ Finally lets do evals, these scripts should be triggered after a game is finished and all the game records are saved inm the right places as below
+Game_Hostory
+  Record
+   Recrod_Game_2025_0908….
+    Public History
+    Player 1
+     Info
+     Private Thoughts
+     Public Speech
+    Player 2
+    …etc.
+  Evals
+   Evals_Game_2025_0908…
+The overarching eval will be an elo system and some other metrics. Basically after each game round the green agent (llm session) will be prompted to complete some evaluation tasks that will result in producing some graphs.
+ Here are things that need to be updated after a game is end, you can keep them in a csv file for now or a backend database if you deem necessary, the storage should be per model based, so the first thing you should do is when starting the game, add the logic to look in /Users/haoming/mafia/werewolf_bench/src/agent_config.py – inside these configs record the models used and their role! E.g. player 1 open ai villager player 2 …./
+ All the dataframe you use to store your elo data will be primarily model based (e.g. open ai turbo, openai gpt 5, claude opus…) There will be a secondary table that is model + profession based (open ai turbo villager…)
+Here is the main eval data you need to store, make the green agent look in the game log and fill out these one by one, (e.g. tak eit response as json or other tool call and populate the csvs accordingly)
+Elo -
+ /Users/haoming/mafia/werewolf_bench/src/werewolf/elo_system.py – but you need to think of a better way, maybe an actual file that stores the elo so it can be tracked game to game
+ Per role elo -
+ Villager, open ai win
+ Auto sabotage
+The following eval graphs must be produced every game:
+ The current head to head elo graph (heatmap)
+ Graph description…
+
+Additional instructions for the eval agent and project
+You are the post-game evaluation agent for the Werewolf bench project.
+ Your job starts after a game is fully finished and all the raw logs are saved in Game_History/Record/Recrod_Game_YYYY_MMDD....
+Your responsibilities:
+Read game metadata and logs
+
+
+Update persistent eval tables (CSV or DB)
+
+
+Recompute ELO and other metrics
+
+
+Regenerate all eval graphs
+
+
+Save a structured eval record for this specific game
+
+
+1. Trigger and inputs
+You are triggered with:
+game_id (e.g. "Game_2025_0908_001")
+
+
+The path to the game directory:
+
+ /Users/haoming/mafia/werewolf_bench/Game_History/Record/Recrod_<game_id>/
+
+
+Access to the config file that maps player slots → models and roles:
+
+ /Users/haoming/mafia/werewolf_bench/src/agent_config.py
+
+
+1.1. What to read from agent_config.py
+From agent_config.py, extract for this game:
+player_id (e.g. "Player 1")
+
+
+model_provider (e.g. "openai", "anthropic", "google")
+
+
+model_name (e.g. "gpt-5.1-mini", "claude-3.5-opus")
+
+
+role (e.g. "villager", "wolf", "seer", "doctor")
+
+
+Build a canonical identifier:
+model_id = f"{model_provider}:{model_name}"
+role_id  = f"{model_id}|{role}"
+
+You will use model_id and role_id in all CSVs and graphs.
+1.2. What to read from game logs
+From Recrod_Game_<game_id>/ read at minimum:
+Public History/ (sequence of turns, speeches, votes, night actions)
+
+
+For each Player i:
+
+
+Info (role, side: villager team vs wolf team)
+
+
+Private Thoughts (if needed for advanced metrics)
+
+
+Public Speech (for behavioral / manipulation metrics)
+
+
+Also determine:
+winning_side ("villagers" or "wolves")
+
+
+For each player:
+
+
+alive_at_end (bool)
+
+
+Whether the player was on the winning team.
+
+
+
+2. Persistent evaluation storage
+For now, use CSV files stored under:
+/Users/haoming/mafia/werewolf_bench/Game_History/Evals/
+
+You should maintain at least three CSV tables:
+model_overall_stats.csv
+
+
+model_role_stats.csv
+
+
+matchup_stats.csv
+
+
+You may add more if needed.
+2.1. model_overall_stats.csv
+One row per model_id (ignoring role).
+Columns:
+model_id
+
+
+model_provider
+
+
+model_name
+
+
+games_played
+
+
+wins
+
+
+losses
+
+
+wins_as_villager_team (regardless of specific villager role)
+
+
+wins_as_wolf_team
+
+
+elo_overall (scalar)
+
+
+last_updated_game_id
+
+
+last_updated_timestamp
+
+
+Logic:
+When a new model is encountered, create a new row with default ELO (e.g. 1500).
+
+
+After each game, increment games_played, wins, losses accordingly.
+
+
+Recompute elo_overall using the ELO system described below.
+
+
+2.2. model_role_stats.csv
+One row per role_id = model_id|role.
+Columns:
+model_id
+
+
+role
+
+
+role_id (concatenation for convenience)
+
+
+games_played_role
+
+
+wins_role
+
+
+losses_role
+
+
+elo_role
+
+
+last_updated_game_id
+
+
+last_updated_timestamp
+
+
+Logic:
+Same as overall, but restricted to that role (villager, wolf, seer, etc).
+
+
+This is where “Per role elo” lives (e.g. “Villager, open ai win”).
+
+
+2.3. matchup_stats.csv
+This supports the head-to-head heatmap.
+Each row = one villager-side model vs wolf-side model pairing.
+ For multi-villager teams, treat the villager side as the main villager LLM model you want to track, or consider a deterministic rule (e.g. “green agent” as representative).
+Columns:
+villager_model_id
+
+
+wolf_model_id
+
+
+games_played
+
+
+villager_wins
+
+
+wolf_wins
+
+
+expected_villager_win_rate (from ELO)
+
+
+observed_villager_win_rate (villager_wins / games_played)
+
+
+last_updated_game_id
+
+
+last_updated_timestamp
+
+
+You will use villager_wins, wolf_wins, and games_played to build the heatmap.
+
+3. ELO system
+Use /Users/haoming/mafia/werewolf_bench/src/werewolf/elo_system.py as the implementation module but ensure that:
+ELO values are persisted across games in the CSVs above.
+
+
+After loading the CSVs, you call update functions in elo_system.py to:
+
+
+Update model overall ELO
+
+
+Update role-specific ELO
+
+
+3.1. ELO update per game
+For each game:
+Collapse the game into two sides:
+
+
+Side A = villager team
+
+
+Side B = wolf team
+
+
+Compute each side’s ELO as either:
+
+
+The average of all players’ ELOs on that side, or
+
+
+The ELO of the main LLM agent on that side (recommended for now).
+
+
+Then:
+# Using standard ELO formula
+expected_A = 1 / (1 + 10 ** ((elo_B - elo_A) / 400))
+expected_B = 1 - expected_A
+
+K = 32  # or tuned value
+
+if winning_side == "villagers":
+    result_A, result_B = 1, 0
+else:
+    result_A, result_B = 0, 1
+
+new_elo_A = elo_A + K * (result_A - expected_A)
+new_elo_B = elo_B + K * (result_B - expected_B)
+
+Apply:
+To model_overall_stats for each model on each side.
+
+
+To model_role_stats for each role_id participating.
+
+
+Write back to CSVs after updates.
+
+4. Additional metrics (including “auto sabotage”)
+Beyond ELO and wins, compute and store additional per-game, per-player metrics.
+ These should be stored in a per-game eval JSON under:
+Game_History/Evals/Evals_<game_id>.json
+
+Include at least:
+4.1. Auto sabotage
+“Auto sabotage” is a score for how much a player’s behavior hurts its own team.
+Ideas for heuristics (the agent should implement at least a simple version):
+Obvious mis-voting: on lynch votes, did a villager repeatedly vote for other villagers despite strong evidence?
+
+
+Contradictory speech: using the Public Speech logs, check whether the player:
+
+
+Claims to be a role they are not.
+
+
+Publicly pushes narratives that statistically helped the opposite team.
+
+
+Implementation sketch:
+For each player, compute a sabotage score between 0 and 1.
+
+
+Use a simple rubric and have the LLM score each player based on the transcript, e.g.:
+
+
+ “On a scale 0–1, how much did Player X’s actions and votes harm their own team, given that they were ROLE Y?”
+
+
+
+Store:
+
+
+auto_sabotage_score
+
+
+Optional explanation text
+
+
+Per-game JSON structure idea:
+{
+  "game_id": "Game_2025_0908_001",
+  "winning_side": "villagers",
+  "players": [
+    {
+      "player_id": "Player 1",
+      "model_id": "openai:gpt-5.1-mini",
+      "role": "villager",
+      "team": "villagers",
+      "on_winning_team": true,
+      "auto_sabotage_score": 0.1,
+      "auto_sabotage_explanation": "Generally cooperative and voted with majority against wolves."
+    }
+  ]
+}
+
+You can later aggregate sabotage metrics by model/role, but for now just saving per game is enough.
+
+5. Required eval graphs (regenerate every game)
+After updating the CSVs, you must regenerate the following graphs.
+ Save all graphs under:
+Game_History/Evals/Graphs/
+
+Use clear filenames including date/time or a simple overwrite of the “latest” version.
+5.1. Head-to-head ELO / win-rate heatmap
+Data source: matchup_stats.csv.
+Axes:
+Rows = villager models (villager_model_id)
+
+
+Columns = wolf models (wolf_model_id)
+
+
+For each cell:
+Compute observed_villager_win_rate = villager_wins / games_played
+
+
+Display label inside cell:
+
+ "80%\n4–1"
+ where 80% is win rate, 4–1 is villager_wins – wolf_wins.
+
+
+Color scale:
+0% villager win rate = blue
+
+
+50% = white
+
+
+100% = dark red
+
+
+Gray for cells with games_played == 0 (no data)
+
+
+Output file:
+Game_History/Evals/Graphs/head_to_head_heatmap.png
+
+Use Python + pandas + matplotlib/seaborn. Example path logic:
+# Load matchup_stats.csv -> build pivot tables:
+#   index = villager_model_id
+#   columns = wolf_model_id
+#   values = observed_villager_win_rate and labels.
+
+5.2. Overall ELO leaderboard
+Graph: horizontal bar chart of elo_overall by model_id.
+Read from model_overall_stats.csv
+
+
+Sort descending by elo_overall
+
+
+Save as:
+
+ Game_History/Evals/Graphs/elo_overall_leaderboard.png
+
+
+5.3. Role-specific ELO leaderboard
+Graph: grouped bar chart (or multiple plots) of elo_role by model and by role.
+Read from model_role_stats.csv
+
+
+For each role (villager, wolf, etc.) plot ELO per model_id
+
+
+Save as something like:
+
+ Game_History/Evals/Graphs/elo_by_role.png
+
+
+5.4. Auto sabotage distribution (optional but recommended)
+Graph: histogram or boxplot of auto_sabotage_score per model or role.
+Read latest Evals_*.json files and aggregate sabotage scores.
+
+
+Example: boxplot of sabotage score by model_id.
+
+
+Save as:
+
+ Game_History/Evals/Graphs/auto_sabotage_by_model.png
+
+
+
+6. Summary report per game
+For each game, also produce a short text summary and store it as:
+Game_History/Evals/Evals_<game_id>_summary.txt
+
+Include:
+Game ID and timestamp
+
+
+Winning side
+
+
+List of players with:
+
+
+model_id, role, team
+
+
+Whether they were on the winning team
+
+
+ELO changes (old → new) for overall and role
+
+
+Auto sabotage score
+
+
+Any notable patterns (e.g. villager team dominated, wolf comeback, etc.)
+
+
+This summary can be generated by the LLM using the structured JSON and CSV values.
+
+7. High-level flow for the eval agent
+When you, the eval agent, are called after a game:
+Load agent_config.py → map player slots to model_id and role.
+
+
+Parse Game_History/Record/Recrod_<game_id>/ to extract:
+
+
+Winning side
+
+
+Player roles / teams
+
+
+Public history and speech (for advanced metrics).
+
+
+Load or create the CSV files:
+
+
+model_overall_stats.csv
+
+
+model_role_stats.csv
+
+
+matchup_stats.csv
+
+
+Update:
+
+
+Overall model stats and ELO.
+
+
+Role-specific stats and ELO.
+
+
+Matchup stats (villager vs wolf model pairing).
+
+
+Compute per-player additional metrics (e.g. auto sabotage) and write Evals_<game_id>.json.
+
+
+Regenerate all graphs in Game_History/Evals/Graphs/.
+
+
+Write Evals_<game_id>_summary.txt summarizing the game and ELO changes.
+
+
+Return a short success message and paths to the updated files.
+
+
+

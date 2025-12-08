@@ -1,0 +1,9 @@
+tunnel: 33d2e1d9-3ae1-4b68-8056-3d0b50345794
+credentials-file: /Users/haoming/.cloudflared/33d2e1d9-3ae1-4b68-8056-3d0b50345794.json
+
+ingress:
+  - hostname: green.werwolfs.org
+    service: http://localhost:8010
+  - hostname: white.werwolfs.org
+    service: http://localhost:9002
+  - service: http_status:404

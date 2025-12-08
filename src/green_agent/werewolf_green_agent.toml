@@ -1,0 +1,35 @@
+name = "werewolf_green_agent"
+description = "The assessment hosting agent for werewolf-based assessments."
+version = "0.1.0"
+
+defaultInputModes = ["text"]
+defaultOutputModes = ["text"]
+[capabilities]
+streaming = false
+
+[[skills]]
+id = "host_assess_werewolf"
+name = "Werewolf assessment hosting"
+description = """
+Assess the tool-calling ability of an agent within the Werewolf assessment harness.
+"""
+tags = ["green agent", "assessment hosting", "werewolf"]
+examples = ["""    
+Your task is to instantiate the werewolf assessment harness to test the agent located at:
+<white_agent_url>
+http://localhost:9002/
+</white_agent_url>
+You should use the following env configuration and point the assessor at the local `src/werewolf` module when relevant:
+<env_config>
+{
+  "env": "retail",
+  "user_strategy": "llm",
+  "user_model": "openai/gpt-4o",
+  "user_provider": "openai",
+  "task_split": "test",
+  "task_ids": [
+    1
+  ]
+}
+</env_config>
+    """]
