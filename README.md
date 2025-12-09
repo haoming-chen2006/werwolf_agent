@@ -11,6 +11,37 @@ src/
 └── launcher.py     # Evaluation coordinator
 ```
 
+## Installation & Setup
+
+This project uses `uv` for dependency management.
+
+1.  **Install uv** (if not already installed):
+    ```bash
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    ```
+
+2.  **Sync dependencies**:
+    This will create the virtual environment and install all locked dependencies.
+    ```bash
+    uv sync
+    ```
+
+3.  **Activate the environment**:
+    ```bash
+    source .venv/bin/activate
+    ```
+
+4.  **Environment Configuration**:
+    Create a `.env` file in the root directory with your specific configuration.
+    ```bash
+    touch .env
+    # Add your environment variables to .env
+    ```
+
+Run a quick local test:
+python main.py launch
+
+
 ## Integration with AgentBeats
 
 ## Quick Start (AgentBeats Integration)
@@ -88,16 +119,17 @@ python main.py launch
 
 **How to run (local demo)**
 
-- Create/activate the virtualenv (project has a `.venv`):
+- Ensure you have followed the [Installation & Setup](#installation--setup) steps above.
+
+- Activate the environment:
 ```bash
-cd /Users/haoming/mafia/werewolf_bench
 source .venv/bin/activate
 ```
 - Start green agent (controller-managed run) — this command is the one you use frequently:
 ```bash
-pip install --upgrade agentbeats
+uv pip install --upgrade agentbeats
 ```
 - Or launch both agents and run a local demo (uses `launcher.launch_evaluation`):
 ```bash
 python main.py launch
-``
+```
