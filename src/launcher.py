@@ -67,6 +67,8 @@ async def launch_evaluation():
         # provider/model handy for the white process
         child_env["AGENT_PROVIDER"] = spec.provider
         child_env["AGENT_MODEL"] = spec.model
+        # Pass agent mode (vanilla or advanced) to child processes
+        child_env["WHITE_AGENT_MODE"] = os.environ.get("WHITE_AGENT_MODE", "advanced")
 
         # set child env in parent briefly; child will inherit env at start
         orig = os.environ.copy()

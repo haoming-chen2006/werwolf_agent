@@ -35,18 +35,23 @@ class GameLogger:
 
             # Info.json
             # Use alias as name if name is not available (PlayerProfile vs PlayerCard)
-            p_name = getattr(player, "name", player.alias)
+            p_name = getattr(player, "name", None) or getattr(player, "alias", None) or player.id
             p_model = getattr(player, "model", "Unknown")
+            p_role = getattr(player, "role_private", "villager")
+            p_alignment = getattr(player, "alignment", "town")
             
             info = {
                 "Player_name": p_name,
-                "Player_role": player.role_private,
+                "Player_role": p_role,
                 "Player_model": p_model,
                 "Player_id": player.id,
-                "Alignment": player.alignment
+                "Alignment": p_alignment
             }
-            with open(os.path.join(player_dir, "Info.json"), "w") as f:
-                json.dump(info, f, indent=2)
+            try:
+                with open(os.path.join(player_dir, "Info.json"), "w") as f:
+                    json.dump(info, f, indent=2)
+            except Exception as e:
+                print(f"[GameLogger] Failed to write Info.json for {player.id}: {e}")
 
             # Initialize empty logs
             self._init_log_file(player_dir, "Private_Thoughts.json")
@@ -55,8 +60,11 @@ class GameLogger:
             # Initialize History.txt
             history_path = os.path.join(player_dir, "History.txt")
             if not os.path.exists(history_path):
-                with open(history_path, "w") as f:
-                    f.write(f"Game History for {p_name} ({player.role_private})\n==========================================\n")
+                try:
+                    with open(history_path, "w") as f:
+                        f.write(f"Game History for {p_name} ({p_role})\n==========================================\n")
+                except Exception as e:
+                    print(f"[GameLogger] Failed to write History.txt for {player.id}: {e}")
 
     def _init_log_file(self, directory: str, filename: str):
         path = os.path.join(directory, filename)

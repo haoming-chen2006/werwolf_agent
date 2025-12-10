@@ -49,11 +49,14 @@ class DayDiscussionPrompt(BaseModel):
     day_number: int
     you: Dict[str, Any]
     players: List[Dict[str, Any]]
-    public_history: List[Dict[str, Any]]
+    # Accept either an in-memory list of events or a file path string to the public history
+    public_history: Optional[Union[List[Dict[str, Any]], str]] = None
     role_statement: Optional[str] = None
-    private_thoughts_history: Optional[List[Dict[str, Any]]] = None
-    public_speech_history: Optional[List[Dict[str, Any]]] = None
+    # These fields may be provided as file paths (str) or as in-memory lists
+    private_thoughts_history: Optional[Union[List[Dict[str, Any]], str]] = None
+    public_speech_history: Optional[Union[List[Dict[str, Any]], str]] = None
     history_text: Optional[str] = None
+    file_location: Optional[str] = None
     instruction: str = "Output strictly JSON with 'thought' and 'speech'."
     constraints: DayDiscussionConstraints
 
@@ -86,10 +89,11 @@ class DayVotePrompt(BaseModel):
     you: Dict[str, Any]
     options: List[str]
     public_summary: str
-    public_history: Optional[List[Dict[str, Any]]] = None
-    private_thoughts_history: Optional[List[Dict[str, Any]]] = None
-    public_speech_history: Optional[List[Dict[str, Any]]] = None
+    public_history: Optional[Union[List[Dict[str, Any]], str]] = None
+    private_thoughts_history: Optional[Union[List[Dict[str, Any]], str]] = None
+    public_speech_history: Optional[Union[List[Dict[str, Any]], str]] = None
     history_text: Optional[str] = None
+    file_location: Optional[str] = None
     constraints: VoteConstraints = Field(default_factory=VoteConstraints)
 
 
@@ -143,9 +147,13 @@ class NightRolePrompt(BaseModel):
     options: Dict[str, Any]
     public_history_summary: str
     role_statement: Optional[str] = None
-    private_thoughts_history: Optional[List[Dict[str, Any]]] = None
-    public_speech_history: Optional[List[Dict[str, Any]]] = None
+    # Allow file path pointers for histories so green agent can provide compact handles
+    private_thoughts_history: Optional[Union[List[Dict[str, Any]], str]] = None
+    public_speech_history: Optional[Union[List[Dict[str, Any]], str]] = None
+    # Allow providing a file path to the overall public history as well
+    public_history: Optional[Union[List[Dict[str, Any]], str]] = None
     history_text: Optional[str] = None
+    file_location: Optional[str] = None
     constraints: NightConstraints = Field(default_factory=NightConstraints)
 
 

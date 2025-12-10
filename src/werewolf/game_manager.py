@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 import os
 import json
+from litellm import completion
 
 from .models import (
     GameRecord, PlayerProfile, RoleName, Alignment, 
@@ -27,6 +28,7 @@ from .metrics import build_metrics
 from . import persistence
 from .logging_manager import GameLogger
 from .evaluation import EvaluationManager
+from src.my_util.file_tools import read_file_tool
 
 class GameManager:
     def __init__(self, players: List[PlayerProfile], config: Dict[str, Any], log_callback=None):
@@ -134,8 +136,11 @@ class GameManager:
         
         for pid in wolves:
             prompt = self._generate_night_prompt(pid, "werewolf", night_num)
-            # Log prompting
-            self.logger.log_green_event(f"Prompting Wolf {pid} for Night {night_num} action.")
+            # Log prompting (include full prompt JSON)
+            try:
+                self.logger.log_green_event(f"Prompting Wolf {pid} for Night {night_num} action. Prompt: {prompt.model_dump_json()}")
+            except Exception:
+                self.logger.log_green_event(f"Prompting Wolf {pid} for Night {night_num} action.")
             
             prompts.append(NightPromptRecord(player_id=pid, night_role_prompt=prompt, private_thought=""))
             
@@ -173,7 +178,10 @@ class GameManager:
         
         for pid in detectives:
             prompt = self._generate_night_prompt(pid, "detective", night_num)
-            self.logger.log_green_event(f"Prompting Detective {pid} for Night {night_num} action.")
+            try:
+                self.logger.log_green_event(f"Prompting Detective {pid} for Night {night_num} action. Prompt: {prompt.model_dump_json()}")
+            except Exception:
+                self.logger.log_green_event(f"Prompting Detective {pid} for Night {night_num} action.")
             
             prompts.append(NightPromptRecord(player_id=pid, night_role_prompt=prompt, private_thought=""))
             
@@ -195,7 +203,10 @@ class GameManager:
         for pid in doctors:
             # Pass attacked_player to doctor prompt
             prompt = self._generate_night_prompt(pid, "doctor", night_num, attacked_player=kill_target)
-            self.logger.log_green_event(f"Prompting Doctor {pid} for Night {night_num} action.")
+            try:
+                self.logger.log_green_event(f"Prompting Doctor {pid} for Night {night_num} action. Prompt: {prompt.model_dump_json()}")
+            except Exception:
+                self.logger.log_green_event(f"Prompting Doctor {pid} for Night {night_num} action.")
             
             prompts.append(NightPromptRecord(player_id=pid, night_role_prompt=prompt, private_thought=""))
             
@@ -219,7 +230,11 @@ class GameManager:
         villagers = [p for p in alive_players if self.state.roles[p] == "villager"]
         for pid in villagers:
             prompt = self._generate_night_prompt(pid, "villager", night_num)
-            # Just query for completeness, they sleep
+            # Log prompting (include prompt JSON) and query for completeness, they sleep
+            try:
+                self.logger.log_green_event(f"Prompting Villager {pid} for Night {night_num} action. Prompt: {prompt.model_dump_json()}")
+            except Exception:
+                self.logger.log_green_event(f"Prompting Villager {pid} for Night {night_num} action.")
             prompts.append(NightPromptRecord(player_id=pid, night_role_prompt=prompt, private_thought=""))
             response_data = await self._query_agent_night_action(pid, prompt)
             responses.append(NightResponseRecord(player_id=pid, night_action_response=response_data))
@@ -324,8 +339,15 @@ class GameManager:
         else:
             prompt = generate_villager_night_prompt(self.state, pid, night_num, history_text)
 
+        # Instead of embedding full private/public lists here, pass file paths
+        # so downstream tooling (or logging) sees compact pointers.
         # Store history text in the prompt model too
         prompt.history_text = history_text
+        # Replace list fields with file paths (they will be inlined later)
+        prompt.private_thoughts_history = os.path.join(self.logger.base_dir, f"Player_{pid}", "Private_Thoughts.json")
+        prompt.public_speech_history = os.path.join(self.logger.base_dir, f"Player_{pid}", "Public_Speech.json")
+        prompt.public_history = self.logger.public_history_path
+        prompt.file_location = self.logger.base_dir
         return prompt
 
     async def _query_agent_night_action(self, pid: str, prompt: NightRolePrompt) -> Dict[str, Any]:
@@ -335,10 +357,13 @@ class GameManager:
         url = player.url or "http://localhost:8011" # Default to white agent port
         
         try:
+            # Assemble final prompt. We do NOT inline file contents anymore,
+            # as the white agent (planner) is expected to handle file reading.
+            payload = prompt.model_dump()
+
             async with httpx.AsyncClient() as client:
-                # Assuming a standard endpoint structure or custom one
-                # Here we send the prompt to the agent
-                resp = await client.post(f"{url}/agent/night_action", json=prompt.model_dump(), timeout=10.0)
+                # Send the assembled payload to the white agent
+                resp = await client.post(f"{url}/agent/night_action", json=payload, timeout=10.0)
                 if resp.status_code == 200:
                     return resp.json()
         except Exception as e:
@@ -392,9 +417,6 @@ You are {p_name} (Player ID: {pid}).
 Your role is {player.role_private}.
 Your goal is to help the {player.alignment} team win.
 
-YOUR PAST HISTORY:
-{history_text if history_text else "This is the beginning of the game. You have no past history yet."}
-
 CURRENT SITUATION:
 - It is Day {day_num}
 - Alive players: {', '.join(alive_players)}
@@ -415,13 +437,15 @@ Example:
             prompt = DayDiscussionPrompt(
                 phase="day",
                 day_number=day_num,
-                you={"id": pid, "alive": True},
+                you={"id": pid, "alive": True, "role": player.role_private, "alignment": player.alignment, "name": p_name},
                 players=[{"id": p, "alive": True} for p in alive_players],
-                public_history=self.state.public_history,
+                # Use compact file-path pointers for histories; they'll be inlined before sending
+                public_history=self.logger.public_history_path,
                 role_statement=role_statement,
-                private_thoughts_history=self.logger.get_player_private_thoughts(pid),
-                public_speech_history=self.logger.get_public_speech_history(),
-                history_text=history_text,
+                private_thoughts_history=os.path.join(self.logger.base_dir, f"Player_{pid}", "Private_Thoughts.json"),
+                public_speech_history=os.path.join(self.logger.base_dir, f"Player_{pid}", "Public_Speech.json"),
+                # history_text=history_text, # Omitted to keep prompt short
+                file_location=self.logger.base_dir,
                 instruction="",  # Already included in role_statement
                 constraints=DayDiscussionConstraints(max_words=100)
             )
@@ -464,9 +488,6 @@ Example:
 Your role is {player.role_private}.
 Your goal is to help the {player.alignment} team win.
 
-YOUR PAST HISTORY:
-{history_text if history_text else "This is the beginning of the game."}
-
 CURRENT SITUATION:
 - It is Day {day_num} - Time to vote for elimination
 - Alive players: {', '.join(alive_players)}
@@ -485,13 +506,14 @@ Example:
             prompt = DayVotePrompt(
                 phase="vote",
                 day_number=day_num,
-                you={"id": pid},
+                you={"id": pid, "role": player.role_private, "alignment": player.alignment, "name": p_name},
                 options=alive_players,
                 public_summary=vote_summary,
-                public_history=self.state.public_history,
-                private_thoughts_history=self.logger.get_player_private_thoughts(pid),
-                public_speech_history=self.logger.get_public_speech_history(),
-                history_text=history_text
+                public_history=self.logger.public_history_path,
+                private_thoughts_history=os.path.join(self.logger.base_dir, f"Player_{pid}", "Private_Thoughts.json"),
+                public_speech_history=os.path.join(self.logger.base_dir, f"Player_{pid}", "Public_Speech.json"),
+                # history_text=history_text,
+                file_location=self.logger.base_dir
             )
 
             prompts.append(VotePromptRecord(
@@ -549,15 +571,44 @@ Example:
             end_of_day_summary={}
         )
 
+    async def _repair_json_with_llm(self, raw_response: str, expected_schema: str) -> Dict[str, Any]:
+        """Attempt to repair invalid JSON using an LLM."""
+        try:
+            print(f"[GreenAgent] Attempting to repair invalid JSON: {raw_response[:100]}...")
+            response = completion(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": f"You are a JSON repair assistant. Fix the following invalid JSON to match this schema: {expected_schema}. Output ONLY valid JSON."},
+                    {"role": "user", "content": raw_response}
+                ],
+                response_format={"type": "json_object"}
+            )
+            content = response.choices[0].message.content
+            if content.startswith("```json"): content = content[7:]
+            if content.startswith("```"): content = content[3:]
+            if content.endswith("```"): content = content[:-3]
+            return json.loads(content.strip())
+        except Exception as e:
+            print(f"[GreenAgent] JSON repair failed: {e}")
+            return {}
+
     async def _query_agent_discussion(self, pid: str, prompt: DayDiscussionPrompt) -> DayDiscussionResponse:
         player = self.player_map[pid]
         url = player.url or "http://localhost:8011"
         try:
+            # Assemble final payload. No inlining of files.
+            payload = prompt.model_dump()
+
             async with httpx.AsyncClient() as client:
-                resp = await client.post(f"{url}/agent/discussion", json=prompt.model_dump(), timeout=10.0)
+                resp = await client.post(f"{url}/agent/discussion", json=payload, timeout=60.0) # Increased timeout for multi-session
                 if resp.status_code == 200:
-                    data = resp.json()
-                    # Handle both old format (just "talk") and new format ("thought", "speech")
+                    try:
+                        data = resp.json()
+                    except json.JSONDecodeError:
+                        await self.log(f"[GreenAgent] Invalid JSON from {pid} (discussion): {resp.text}")
+                        # Fallback: Try to repair
+                        data = await self._repair_json_with_llm(resp.text, '{"thought": "string", "speech": "string"}')
+                    
                     speech = data.get("speech") or data.get("talk") or "I have nothing to say."
                     thought = data.get("thought") or "No thought provided."
                     return DayDiscussionResponse(thought=thought, speech=speech)
@@ -569,31 +620,43 @@ Example:
         player = self.player_map[pid]
         url = player.url or "http://localhost:8011"
         try:
+            # Assemble final payload. No inlining of files.
+            payload = prompt.model_dump()
+
             async with httpx.AsyncClient() as client:
-                resp = await client.post(f"{url}/agent/vote", json=prompt.model_dump(), timeout=10.0)
+                resp = await client.post(f"{url}/agent/vote", json=payload, timeout=60.0) # Increased timeout
                 if resp.status_code == 200:
-                    data = resp.json()
+                    try:
+                        data = resp.json()
+                    except json.JSONDecodeError:
+                        await self.log(f"[GreenAgent] Invalid JSON from {pid}: {resp.text}")
+                         # Fallback: Try to repair
+                        data = await self._repair_json_with_llm(resp.text, '{"vote": "player_id", "speech": "string"}')
+
                     # Parse vote from speech if needed, or use explicit vote field
                     speech = data.get("speech", "")
                     vote = data.get("vote")
-                    
-                    # If vote not explicit, try to parse from speech "pX"
                     if not vote and speech:
                         import re
                         match = re.search(r"(p\d+)", speech)
                         if match:
                             vote = match.group(1)
-                            
-                    return VoteResponse(
-                        vote=vote, 
-                        one_sentence_reason=data.get("reason", ""),
-                        speech=speech
-                    )
-        except:
-            pass
-        
+                    
+                    try:
+                        return VoteResponse(
+                            vote=vote, 
+                            one_sentence_reason=data.get("reason", ""),
+                            speech=speech
+                        )
+                    except Exception as val_err:
+                        await self.log(f"[GreenAgent] Invalid VoteResponse from {pid}: {data} - Error: {val_err}")
+                        # Fallback below
+        except Exception as e:
+            await self.log(f"Failed to query agent {pid} for vote: {e}")
+
         # Fallback
         target = random.choice(prompt.options)
+        await self.log(f"[GreenAgent] Fallback vote for {pid}: {target}")
         return VoteResponse(
             vote=target, 
             one_sentence_reason="Random fallback vote",

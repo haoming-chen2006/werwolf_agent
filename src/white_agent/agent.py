@@ -11,6 +11,8 @@ from a2a.server.tasks import InMemoryTaskStore
 from a2a.types import AgentSkill, AgentCard, AgentCapabilities
 from a2a.utils import new_agent_text_message
 from litellm import completion
+import json
+from src.my_util.file_tools import read_file_tool, search_file_tool
 from fastapi import FastAPI
 
 # Import the werewolf white agent FastAPI app and mount it so the A2A server
@@ -54,12 +56,58 @@ class GeneralWhiteAgentExecutor(AgentExecutor):
         if context.context_id not in self.ctx_id_to_messages:
             self.ctx_id_to_messages[context.context_id] = []
         messages = self.ctx_id_to_messages[context.context_id]
-        messages.append(
-            {
-                "role": "user",
-                "content": user_input,
-            }
-        )
+        # Append original user input
+        messages.append({"role": "user", "content": user_input})
+
+        # Try to parse JSON input to look for file pointers described by the
+        # white/green agent guide (e.g. `file_location`, `public_history`,
+        # `private_thoughts_history`, `public_speech_history`). If present,
+        # inline the file contents so the stateless agent still receives the
+        # relevant logs for now.
+        try:
+            parsed = json.loads(user_input)
+        except Exception:
+            parsed = None
+
+        if isinstance(parsed, dict):
+            # keys we care about — if present, read and append their contents
+            file_keys = [
+                "file_location",
+                "public_history",
+                "private_thoughts_history",
+                "public_speech_history",
+            ]
+
+            for k in file_keys:
+                if k in parsed and parsed[k]:
+                    path = parsed[k]
+                    try:
+                        content = read_file_tool(path)
+                    except Exception as e:
+                        content = f"[error reading {path}: {e}]"
+
+                    # Add a helpful system-style message with the file contents
+                    messages.append(
+                        {
+                            "role": "system",
+                            "content": f"[file:{k}] path={path}\n{content}",
+                        }
+                    )
+
+            # Provide a simple search example: if the parsed input contains a
+            # small token like 'p2_search' -> treat it as search request to
+            # demonstrate search_file_tool. (This is optional and conservative.)
+            # Example: { "p2_search": "/path/to/dir" }
+            for key in list(parsed.keys()):
+                if key.endswith("_search") and isinstance(parsed[key], str):
+                    q = key.replace("_search", "")
+                    path = parsed[key]
+                    try:
+                        snippets = search_file_tool(q, path)
+                    except Exception as e:
+                        snippets = [f"[error searching {path}: {e}]"]
+
+                    messages.append({"role": "system", "content": f"[search:{q}] {path}\n" + "\n---\n".join(snippets)})
         if os.environ.get("LITELLM_PROXY_API_KEY") is not None:
             response = completion(
                 messages=messages,

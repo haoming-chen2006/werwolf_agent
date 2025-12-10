@@ -33,12 +33,12 @@ def generate_wolf_night_prompt(
 
     # Format history for natural language
     history_section = ""
-    if history_text:
-        history_section = f"""
-YOUR PAST HISTORY:
-{history_text}
-
-"""
+    # if history_text:
+    #     history_section = f"""
+    # YOUR PAST HISTORY:
+    # {history_text}
+    #
+    # """
 
     prompt_text = f"""You are playing a game of Werewolf.
 Werewolf is a social deduction game where players are divided into two teams: the villagers (who want to identify and eliminate the werewolves) and the werewolves (who want to eliminate the villagers without being caught).
@@ -100,12 +100,12 @@ def generate_detective_night_prompt(
 
     # Format history for natural language
     history_section = ""
-    if history_text:
-        history_section = f"""
-YOUR PAST HISTORY:
-{history_text}
-
-"""
+    # if history_text:
+    #     history_section = f"""
+    # YOUR PAST HISTORY:
+    # {history_text}
+    #
+    # """
 
     inspection_info = _format_inspection_history(previous_inspections)
 
@@ -171,12 +171,12 @@ def generate_doctor_night_prompt(
 
     # Format history for natural language
     history_section = ""
-    if history_text:
-        history_section = f"""
-YOUR PAST HISTORY:
-{history_text}
-
-"""
+    # if history_text:
+    #     history_section = f"""
+    # YOUR PAST HISTORY:
+    # {history_text}
+    #
+    # """
 
     if attacked_player and has_save:
         prompt_text = f"""You are playing a game of Werewolf.
@@ -263,12 +263,12 @@ def generate_villager_night_prompt(
 
     # Format history for natural language
     history_section = ""
-    if history_text:
-        history_section = f"""
-YOUR PAST HISTORY:
-{history_text}
-
-"""
+    # if history_text:
+    #     history_section = f"""
+    # YOUR PAST HISTORY:
+    # {history_text}
+    #
+    # """
 
     prompt_text = f"""You are playing a game of Werewolf.
 YOUR ROLE:

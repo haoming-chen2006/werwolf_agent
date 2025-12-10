@@ -51,12 +51,13 @@ def save_game_artifacts(record, base_output_dir: str | None = None) -> Dict[str,
     except Exception as e:
         saved["metrics_error"] = str(e)
 
-    # Per-agent artifacts
+    # Per-player artifacts (use stable Player_{pid} folders so we don't create
+    # duplicate agent_* directories like agent_alice/agent_bob)
     players = record.players
     for p in players:
         pid = p.id
-        alias = p.alias or pid
-        agent_dir = os.path.join(game_dir, f"agent_{alias}")
+        # Save under a canonical Player_{pid} folder (e.g. Player_p1)
+        agent_dir = os.path.join(game_dir, f"Player_{pid}")
         _ensure_dir(agent_dir)
 
         # Collect private thoughts and public speeches from phases
@@ -99,16 +100,16 @@ def save_game_artifacts(record, base_output_dir: str | None = None) -> Dict[str,
         try:
             with open(os.path.join(agent_dir, "private_thoughts.json"), "w") as f:
                 json.dump(private_thoughts, f, indent=2, default=str)
-            saved[f"{alias}_private"] = os.path.join(agent_dir, "private_thoughts.json")
+            saved[f"{pid}_private"] = os.path.join(agent_dir, "private_thoughts.json")
         except Exception as e:
-            saved[f"{alias}_private_error"] = str(e)
+            saved[f"{pid}_private_error"] = str(e)
 
         try:
             with open(os.path.join(agent_dir, "public_speeches.json"), "w") as f:
                 json.dump(public_speeches, f, indent=2, default=str)
-            saved[f"{alias}_public"] = os.path.join(agent_dir, "public_speeches.json")
+            saved[f"{pid}_public"] = os.path.join(agent_dir, "public_speeches.json")
         except Exception as e:
-            saved[f"{alias}_public_error"] = str(e)
+            saved[f"{pid}_public_error"] = str(e)
 
     # Save summary public history / talks
     try:
