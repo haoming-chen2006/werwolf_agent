@@ -24,6 +24,7 @@ This project uses `uv` for dependency management.
     This will create the virtual environment and install all locked dependencies.
     ```bash
     uv sync
+    -- have your own .env file created and registered with OPENAI_API_KEY
     ```
 
 3.  **Activate the environment**:
@@ -31,49 +32,7 @@ This project uses `uv` for dependency management.
     source .venv/bin/activate
     ```
 
-4.  **Environment Configuration**:
-    Create a `.env` file in the root directory with your specific configuration.
-    ```bash
-    ````markdown
-    # Agentify Example: Werewolf
-
-    This repository contains an example of agentifying a Werewolf assessment harness. The local assessment logic lives in `src/werewolf` and the green/white agent examples demonstrate how to run the assessor and target agents using the A2A/MCP pattern.
-
-    ## Project Structure
-
-    ```
-    src/
-    ├── green_agent/    # Assessment manager agent
-    ├── white_agent/    # Target agent being tested
-    └── launcher.py     # Evaluation coordinator
-    ```
-
-    ## Installation & Setup
-
-    This project uses `uv` for dependency management.
-
-    1.  **Install uv** (if not already installed):
-        ```bash
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        ```
-
-    2.  **Sync dependencies**:
-        This will create the virtual environment and install all locked dependencies.
-        ```bash
-        uv sync
-        ```
-
-    3.  **Activate the environment**:
-        ```bash
-        source .venv/bin/activate
-        ```
-
-    4.  **Environment Configuration**:
-        Create a `.env` file in the root directory with your specific configuration.
-        ```bash
-        touch .env
-        # Add your environment variables to .env
-        ```
+4.  **Local Test**:
 
     Run a quick local test:
     python main.py launch
@@ -81,38 +40,67 @@ This project uses `uv` for dependency management.
 
     ## Integration with AgentBeats
 
-    ## Quick Start (AgentBeats Integration)
+## Quick Start (AgentBeats Integration)
 
-    Run each of these in a separate terminal from the `werewolf_bench` directory.
+Run each of these in a separate terminal from the `werwolf_agent` directory.
 
-    ### 1. Start Tunnel
-    Exposes `green.werwolfs.org` and `white.werwolfs.org`.
-    ```bash
-    # Ensure both domains are routed:
-    # cloudflared tunnel route dns tau green.werwolfs.org
-    # cloudflared tunnel route dns tau white.werwolfs.org
+### 1. One-Time Setup: Create White Agent Folders
 
-    cloudflared tunnel --config config.yml run tau
-    ```
+For each white agent you want to run, create a controller folder with a `run.sh` script:
 
-    ### 2. Start Green Agent (Controller)
-    ```bash
-    source .venv/bin/activate
-    HTTPS_ENABLED=true CLOUDRUN_HOST=green.werwolfs.org ROLE=green agentbeats run_ctrl
-    ```
+```bash
+# Create folders for N white agents (e.g., 7 agents)
+for i in 1 2 3 4 5 6 7; do
+    mkdir -p white_agent_ctrl_$i
+    cat > white_agent_ctrl_$i/run.sh << 'EOF'
+#!/bin/bash
+cd /path/to/werwolf_agent  # Update this path!
+source .venv/bin/activate
+AGENT_PORT=${AGENT_PORT:-9002} python main.py white
+EOF
+    chmod +x white_agent_ctrl_$i/run.sh
+done
+```
 
-    ### 3. Start White Agent (Player)
-    ```bash
-    source .venv/bin/activate
-    # Explicitly set AGENT_URL so the agent card reports the correct public address
-    ROLE=white AGENT_PORT=9002 AGENT_URL=https://white.werwolfs.org python main.py run
-    ```
+### 2. One-Time Setup: DNS Routes
 
-    ### 4. Trigger Assessment
-    ```bash
-    source .venv/bin/activate
-    python scripts/trigger_ctrl_eval.py
-    ```
+Set up Cloudflare tunnel routes for your agents (replace with your own domain):
+
+```bash
+# Green agent (controller)
+cloudflared tunnel route dns tau green.werwolfs.org
+
+# White agents (players) - add as many as needed
+cloudflared tunnel route dns tau white1.werwolfs.org
+cloudflared tunnel route dns tau white2.werwolfs.org
+cloudflared tunnel route dns tau white3.werwolfs.org
+# ... up to whiteN.werwolfs.org
+```
+
+Update `config.yml` to include ingress rules for each hostname.
+
+### 3. Start Tunnel
+
+```bash
+cloudflared tunnel --config config.yml run tau
+```
+
+### 4. Start Green Agent (Controller)
+
+```bash
+source .venv/bin/activate
+HTTPS_ENABLED=true CLOUDRUN_HOST=green.werwolfs.org agentbeats run_ctrl
+```
+
+### 5. Start White Agents (Players)
+
+Start each white agent in a separate terminal. Roles are defined in `src/agent_config.py`.
+
+```bash
+# White Agent 1 (port 8011)
+cd white_agent_ctrl_1
+source ../.venv/bin/activate
+PORT=8011 HTTPS_ENABLED=true CLOUDRUN_HOST=white1.werwolfs.org agentbeats run_ctrl
 
     ## Registering on AgentBeats
 
