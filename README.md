@@ -114,49 +114,49 @@ PORT=8011 HTTPS_ENABLED=true CLOUDRUN_HOST=white1.werwolfs.org agentbeats run_ct
     python scripts/trigger_ctrl_eval.py
     ```
 
-    ---
+## Test Scripts
 
-    ## Local Development (No Tunnel)
+The project includes several test and utility scripts for development and demonstration purposes:
 
-    For quick local testing without AgentBeats integration:
+### `populate_dummy_eval_jsons.py`
+Generates dummy evaluation JSON files for testing the evaluation system. Creates 25 sample game records in `Game_History/Evals/` with randomized player data including:
+- Multiple AI models (GPT-4o, Claude, Gemini, Llama, etc.)
+- Various roles (werewolf, villager, detective, doctor)
+- Randomized scores for sabotage, manipulation, resistance, and decision quality
 
-    ```bash
-    # Launch everything (Green + 6 White Agents) automatically
-    python main.py launch
-    ```
+```bash
+python populate_dummy_eval_jsons.py
+```
 
-    **Repository Status & Notes**
+### `populate_dummy_eval_stats.py`
+Populates the evaluation statistics CSV files with dummy data for multiple AI models. Initializes and fills:
+- `model_overall_stats.csv` - Overall win/loss records and ELO ratings
+- `model_role_stats.csv` - Per-role performance statistics
+- `matchup_stats.csv` - Head-to-head model comparisons
+- `model_advanced_stats.csv` - Advanced metrics like voting precision
 
-    - **Structure:**
-    	- `src/green_agent/`: green (assessment) agent implementation and A2A server.
-    	- `src/white_agent/`: white (target) agent implementation and local FastAPI endpoints mounted under `/agent`.
-    	- `src/werewolf/`: core werewolf assessment logic (game manager, models, rules, referee endpoints).
-    	- `scripts/`: helper scripts (e.g. `send_demo_task_to_referee.py`).
-    	- `.venv/`: recommended virtualenv (used during development).
+```bash
+python populate_dummy_eval_stats.py
+```
 
-    - **Recent changes (migration & fixes):**
-    	- `src/green_agent/compat.py` added — small adapter replacing the minimal `tau_bench` API used by the green agent.
-    	- `src/green_agent/agent.py` updated to use `WerewolfGreenAgentExecutor`, to default `AgentCard.url` when `AGENT_URL` is unset, and to handle both pydantic and dict `info` objects from envs.
-    	- `src/green_agent/agent.py` mounts the werewolf FastAPI referee app at `/werewolf` when available.
-    	- `src/white_agent/agent.py` now defaults the white `AgentCard.url` to `http://{host}:{port}` when `AGENT_URL` is unset so it can start locally.
-    	- `src/werewolf/game_manager.py` augmented with prints to show night/day prompts, responses and votes for clearer stdout logs.
-    	- `scripts/send_demo_task_to_referee.py` added to POST a demo `MatchRequest` to the mounted referee endpoint and print the returned `Assessment`.
+### `auto_sabotage_test.py`
+Tests the auto-sabotage detection system by creating a game scenario where a villager deliberately sabotages their own team. The test simulates:
+- A villager falsely claiming to be a wolf
+- Voting against confirmed town members
+- Contradicting detective findings
 
-    **How to run (local demo)**
+This validates that the evaluation system correctly identifies and scores self-sabotaging behavior.
 
-    - Ensure you have followed the [Installation & Setup](#installation--setup) steps above.
+```bash
+python auto_sabotage_test.py
+```
 
-    - Activate the environment:
-    ```bash
-    source .venv/bin/activate
-    ```
-    - Start green agent (controller-managed run) — this command is the one you use frequently:
-    ```bash
-    uv pip install --upgrade agentbeats
-    ```
-    - Or launch both agents and run a local demo (uses `launcher.launch_evaluation`):
-    ```bash
-    python main.py launch
-    ```
+### `elo_demonstration.py`
+Demonstrates the ELO rating system by simulating multiple games between different AI models. Creates test scenarios including:
+- Wolf team victories (wolves successfully eliminate villagers)
+- Villager team victories (town correctly identifies and eliminates wolves)
+- Shows how ELO ratings update based on game outcomes across different models (GPT-4o, Claude, Gemini, Llama)
 
-    ````
+```bash
+python elo_demonstration.py
+```
