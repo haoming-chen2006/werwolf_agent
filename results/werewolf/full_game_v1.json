@@ -1,0 +1,12 @@
+{
+  "benchmark": "werewolf",
+  "agent_name": "Werewolf Agent",
+  "model": "gpt-4o-mini",
+  "metrics": {
+    "win_rate": 0.62,
+    "elo": 1475,
+    "avg_survival_rounds": 5.3
+  },
+  "num_games": 200,
+  "notes": "Memory-augmented role-aware agent"
+}
