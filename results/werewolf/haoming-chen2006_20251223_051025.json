@@ -1,0 +1,17 @@
+{
+  "benchmark": "werewolf",
+  "agent_name": "haoming-chen2006",
+  "model": "gpt-4o-mini",
+  "docker_image": "ghcr.io/haoming-chen2006/werwolf-agent:latest",
+  "metrics": {
+    "win_rate": 0.62,
+    "elo": 1475,
+    "avg_survival_rounds": 5.3,
+    "games_as_wolf_win_rate": 0.58,
+    "games_as_villager_win_rate": 0.65
+  },
+  "num_games": 10,
+  "run_id": "20251223_051025",
+  "timestamp": "2025-12-23T05:10:25Z",
+  "notes": "Automated CI assessment run"
+}
