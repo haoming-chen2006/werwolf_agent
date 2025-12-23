@@ -37,7 +37,7 @@ This project uses `uv` for dependency management.
     Run a quick session with:
    ```bash
     python main.py launch
-     ```
+   ```
 
 
     ## Integration with AgentBeats
@@ -48,7 +48,7 @@ Run each of these in a separate terminal from the `werwolf_agent` directory.
 
 ### 1. One-Time Setup: Create White Agent Folders
 
-For each white agent you want to run, create a controller folder with a `run.sh` script:
+For each white agent you want to run, create a controller folder with a `run.sh` script (this game involves multiple agents so you will need multiple scripts):
 
 ```bash
 # Create folders for N white agents (e.g., 7 agents)
@@ -120,25 +120,6 @@ PORT=8011 HTTPS_ENABLED=true CLOUDRUN_HOST=white1.werwolfs.org agentbeats run_ct
 
 The project includes several test and utility scripts for development and demonstration purposes:
 
-### `populate_dummy_eval_jsons.py`
-Generates dummy evaluation JSON files for testing the evaluation system. Creates 25 sample game records in `Game_History/Evals/` with randomized player data including:
-- Multiple AI models (GPT-4o, Claude, Gemini, Llama, etc.)
-- Various roles (werewolf, villager, detective, doctor)
-- Randomized scores for sabotage, manipulation, resistance, and decision quality
-
-```bash
-python populate_dummy_eval_jsons.py
-```
-
-### `populate_dummy_eval_stats.py`
-Populates the evaluation statistics CSV files with dummy data for multiple AI models. Initializes and fills:
-- `model_overall_stats.csv` - Overall win/loss records and ELO ratings
-- `model_role_stats.csv` - Per-role performance statistics
-- `matchup_stats.csv` - Head-to-head model comparisons
-- `model_advanced_stats.csv` - Advanced metrics like voting precision
-
-```bash
-python populate_dummy_eval_stats.py
 ```
 
 ### `auto_sabotage_test.py`
