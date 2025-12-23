@@ -32,10 +32,12 @@ This project uses `uv` for dependency management.
     source .venv/bin/activate
     ```
 
-4.  **Local Test**:
+4.  **Start Agents and see Assessment!**:
 
-    Run a quick local test:
+    Run a quick session with:
+   ```bash
     python main.py launch
+     ```
 
 
     ## Integration with AgentBeats
